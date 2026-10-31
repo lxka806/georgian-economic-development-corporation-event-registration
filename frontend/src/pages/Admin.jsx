@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import * as XLSX from "xlsx"; // <-- Import Excel library
+import * as XLSX from "xlsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "registrations"
+  const [activeTab, setActiveTab] = useState("dashboard");
   
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -24,6 +24,9 @@ export default function Admin() {
   // Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [sessionFilter, setSessionFilter] = useState("all");
+
+  // Mobile sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // 1. Check if admin is already logged in on mount
   useEffect(() => {
@@ -178,7 +181,6 @@ export default function Admin() {
   const exportExcel = () => {
     if (!data) return;
     
-    // Format data for Excel
     const excelData = users.map(u => ({
       "რეგისტრაციის ნომერი": u._id,
       "სახელი": u.firstName,
@@ -199,44 +201,28 @@ export default function Admin() {
       ).join("\n") || "—"
     }));
 
-    // Create worksheet
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     
-    // Auto-size columns for better readability
     const columnWidths = [
-      { wch: 26 }, // სარეგისტრაციო ნომერი
-      { wch: 15 }, // სახელი
-      { wch: 15 }, // გვარი
-      { wch: 15 }, // ტელეფონი
-      { wch: 25 }, // ელ. ფოსტა
-      { wch: 24 }, // ელფოსტის დადასტურება
-      { wch: 22 }, // რეგისტრაციის თარიღი
-      { wch: 25 }, // კომპანია
-      { wch: 20 }, // პოზიცია
-      { wch: 20 }, // სფერო
-      { wch: 40 }, // ბიზნესის აღწერა
-      { wch: 30 }, // არჩეული სესიები
-      { wch: 30 }, // არჩეული ივენთები
+      { wch: 26 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 },
+      { wch: 24 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 20 },
+      { wch: 40 }, { wch: 30 }, { wch: 30 },
     ];
     worksheet["!cols"] = columnWidths;
 
-    // Create workbook and append sheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "მონაწილეები");
 
-    // Trigger download
     XLSX.writeFile(workbook, "samagrelos_biznesis_dge_2026.xlsx");
   };
 
-  // If checking auth, show blank
   if (checkingAuth) return <div className="min-h-screen bg-gray-100 flex items-center justify-center">იტვირთება...</div>;
 
-  // If not authenticated, show login screen
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#122924] flex items-center justify-center p-4">
-        <form onSubmit={handleLogin} className="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm">
-          <h2 className="text-2xl font-bold text-[#122924] mb-6 text-center">ადმინის პანელი</h2>
+        <form onSubmit={handleLogin} className="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-sm">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#122924] mb-6 text-center">ადმინის პანელი</h2>
           <input
             type="password"
             placeholder="პაროლი"
@@ -286,7 +272,6 @@ export default function Admin() {
   // ==========================================
   const users = Array.isArray(data.users) ? data.users : [];
 
-  // Compute Filtered Users
   const filteredUsers = users.filter(user => {
     const searchString = `${user.firstName} ${user.lastName} ${user.phoneNumber} ${user.email} ${user.businessName}`.toLowerCase();
     const matchesSearch = searchString.includes(searchQuery.toLowerCase());
@@ -300,7 +285,6 @@ export default function Admin() {
     return matchesSearch && matchesSession;
   });
 
-  // Extract ALL unique session & event names to ensure everything gets a card
   const allUniqueNames = [];
   users.forEach(user => {
     (user.sessions || []).forEach(s => {
@@ -311,13 +295,11 @@ export default function Admin() {
     });
   });
 
-  // Initialize all stats to 0
   const sessionStats = {};
   allUniqueNames.forEach(name => {
     sessionStats[name] = 0;
   });
 
-  // Count real registrations
   users.forEach(user => {
     (user.sessions || []).forEach(s => {
       if (s.name) sessionStats[s.name] += 1;
@@ -327,30 +309,59 @@ export default function Admin() {
     });
   });
 
+  const navItems = [
+    { key: "dashboard", label: "დაფა" },
+    { key: "registrations", label: "მონაწილეები" },
+    { key: "sessions", label: "სესიების პარამეტრები" },
+  ];
+
   return (
   <div className="min-h-screen bg-[#f4f4f4] flex font-sans text-gray-800">
     
-    {/* SIDEBAR (unchanged) */}
-    <aside className="w-64 bg-[#122924] flex flex-col text-white shrink-0">
-      <nav className="flex-1 py-6">
-        <button 
-          onClick={() => setActiveTab("dashboard")}
-          className={`w-full text-left px-6 py-3 text-sm font-medium transition-colors ${activeTab === "dashboard" ? "bg-white/10 border-l-4 border-white" : "text-gray-300 hover:bg-white/5 border-l-4 border-transparent"}`}
-        >
-          დაფა
-        </button>
-        <button 
-          onClick={() => setActiveTab("registrations")}
-          className={`w-full text-left px-6 py-3 text-sm font-medium transition-colors ${activeTab === "registrations" ? "bg-white/10 border-l-4 border-white" : "text-gray-300 hover:bg-white/5 border-l-4 border-transparent"}`}
-        >
-          მონაწილეები
-        </button>
+    {/* Mobile overlay */}
+    {sidebarOpen && (
+      <div
+        className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+    )}
+
+    {/* SIDEBAR — responsive: drawer on mobile, static on lg+ */}
+    <aside
+      className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#122924] flex flex-col text-white shrink-0 transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      {/* Mobile close button */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-white/10 lg:hidden">
+        <span className="text-sm font-semibold">მენიუ</span>
         <button
-          onClick={() => setActiveTab("sessions")}
-          className={`w-full text-left px-6 py-3 text-sm font-medium transition-colors ${activeTab === "sessions" ? "bg-white/10 border-l-4 border-white" : "text-gray-300 hover:bg-white/5 border-l-4 border-transparent"}`}
+          onClick={() => setSidebarOpen(false)}
+          aria-label="დახურვა"
+          className="text-gray-300 hover:text-white text-2xl leading-none px-2"
         >
-          სესიების პარამეტრები
+          ×
         </button>
+      </div>
+
+      <nav className="flex-1 py-4 lg:py-6">
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => {
+              setActiveTab(item.key);
+              setSidebarOpen(false);
+            }}
+            className={`w-full text-left px-6 py-3 text-sm font-medium transition-colors ${
+              activeTab === item.key
+                ? "bg-white/10 border-l-4 border-white"
+                : "text-gray-300 hover:bg-white/5 border-l-4 border-transparent"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       <div className="p-6 border-t border-white/10">
@@ -361,13 +372,25 @@ export default function Admin() {
     </aside>
 
     {/* MAIN CONTENT AREA */}
-    <main className="flex-1 p-8 min-w-0">
+    <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
       
-      <div className="flex items-baseline gap-3 mb-8">
-        <h1 className="text-2xl font-bold text-[#122924]">
-          {activeTab === "dashboard" ? "დაფა" : activeTab === "sessions" ? "სესიების პარამეტრები" : "მონაწილეები"}
-        </h1>
-        <span className="text-gray-400 text-sm">სამეგრელოს ბიზნესის დღე 2026</span>
+      {/* Header with mobile menu button */}
+      <div className="flex items-center gap-3 mb-6 lg:mb-8">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="მენიუს გახსნა"
+          className="lg:hidden shrink-0 rounded-md border border-gray-300 bg-white p-2 text-[#122924] hover:bg-gray-50"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#122924] truncate">
+            {activeTab === "dashboard" ? "დაფა" : activeTab === "sessions" ? "სესიების პარამეტრები" : "მონაწილეები"}
+          </h1>
+          <span className="text-gray-400 text-xs sm:text-sm truncate">სამეგრელოს ბიზნესის დღე 2026</span>
+        </div>
       </div>
 
       {activeTab === "sessions" ? (
@@ -383,14 +406,17 @@ export default function Admin() {
           )}
           <div className="space-y-3">
             {sessions.map((session) => (
-              <div key={session._id} className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                <span>
-                  <span className="block font-semibold text-[#122924]">{session.name}</span>
+              <div
+                key={session._id}
+                className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
+                <span className="min-w-0">
+                  <span className="block font-semibold text-[#122924] break-words">{session.name}</span>
                   <span className="mt-1 block text-xs text-gray-500">
                     {session.startTime} – {session.endTime}
                   </span>
                 </span>
-                <span className="flex shrink-0 items-center gap-3 text-sm">
+                <span className="flex flex-wrap items-center gap-3 text-sm sm:shrink-0">
                   <span className="flex items-center gap-2">
                     <input
                       type="number"
@@ -434,18 +460,18 @@ export default function Admin() {
         </section>
       ) : activeTab === "dashboard" ? (
         /* ================= DASHBOARD ================= */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="bg-[#122924] text-white p-6 rounded-xl shadow-md">
             <p className="text-sm text-gray-300 mb-1">სულ დარეგისტრირებული</p>
             <p className="text-xs text-gray-400 mb-6">დადასტურებული რეგისტრაციები</p>
-            <p className="text-5xl font-bold">{data.summary.verifiedUsers}</p>
+            <p className="text-4xl sm:text-5xl font-bold">{data.summary.verifiedUsers}</p>
           </div>
 
           {Object.entries(sessionStats).map(([name, count]) => (
             <div key={name} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">{name}</p>
+              <p className="text-sm text-gray-600 mb-1 break-words">{name}</p>
               <p className="text-xs text-gray-400 mb-6">რეგისტრირებული მონაწილეები</p>
-              <p className="text-4xl font-bold text-[#122924]">{count}</p>
+              <p className="text-3xl sm:text-4xl font-bold text-[#122924]">{count}</p>
             </div>
           ))}
         </div>
@@ -453,9 +479,9 @@ export default function Admin() {
         /* ================= REGISTRATIONS VIEW ================= */
         <div>
           {/* Toolbar */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <div className="relative w-full md:w-72">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+              <div className="relative w-full sm:w-72">
                 <svg className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -480,7 +506,7 @@ export default function Admin() {
               <select
                 value={sessionFilter}
                 onChange={(e) => setSessionFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#122924] bg-white w-full md:w-auto"
+                className="border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-[#122924] bg-white w-full sm:w-auto"
               >
                 <option value="all">სესია / ივენთი: ყველა</option>
                 {allUniqueNames.map(name => (
@@ -489,21 +515,22 @@ export default function Admin() {
               </select>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
               <span className="text-xs text-gray-500 whitespace-nowrap">{filteredUsers.length} მონაწილე</span>
               <button 
                 onClick={exportExcel}
-                className="bg-[#122924] text-white px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#1e3632] transition-colors"
+                className="bg-[#122924] text-white px-4 sm:px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#1e3632] transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                ყველა მომხმარებლის Excel-ში ჩამოტვირთვა
+                <span className="hidden sm:inline">ყველა მომხმარებლის Excel-ში ჩამოტვირთვა</span>
+                <span className="sm:hidden">Excel</span>
               </button>
             </div>
           </div>
 
-          {/* Table wrapper — horizontal scroll but with a nicer custom scrollbar */}
+          {/* Table wrapper — horizontal scroll on small screens */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-left text-sm text-gray-700 min-w-[1400px]">

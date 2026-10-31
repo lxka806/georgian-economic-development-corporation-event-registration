@@ -16,19 +16,24 @@ const selectionRoute = require("./router/selection.routes")
 const adminRoute = require("./router/admin.routes")
 const cors = require("cors");
 
-const allowedOrigins = new Set([
-    "https://registerform-luka.netlify.app/",
-    ...(process.env.CORS_ORIGINS || "")
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean)
-]);
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 const corsOptions = {
-    origin: (origin, callback) => {
-        callback(null, !origin || allowedOrigins.has(origin));
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error("Not allowed by CORS"));
     },
-    credentials: true
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 };
+
 
 app.use(cors(corsOptions))
 
