@@ -3,11 +3,7 @@ const Event = require("../models/Event");
 const Session = require("../models/Session");
 const User = require("../models/User");
 const { getReferenceId, isObjectIdString } = require("../utils/mongoIds");
-const {
-    clearAdminCookie,
-    createAdminToken,
-    setAdminCookie
-} = require("../middleware/authentication");
+const { createAdminToken } = require("../middleware/authentication");
 const { orderSessions } = require("../utils/sessionOrder");
 
 const ADMIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -62,9 +58,9 @@ const adminLogin = (req, res) => {
 
     try {
         const { token, expiresIn } = createAdminToken();
-        setAdminCookie(res, token, expiresIn);
         return res.status(200).json({
             authenticated: true,
+            token,
             expiresIn
         });
     } catch (error) {
@@ -82,10 +78,8 @@ const adminLogin = (req, res) => {
 const adminSession = (req, res) =>
     res.status(200).json({ authenticated: true });
 
-const adminLogout = (req, res) => {
-    clearAdminCookie(res);
-    return res.status(200).json({ authenticated: false });
-};
+const adminLogout = (req, res) =>
+    res.status(200).json({ authenticated: false });
 
 const setSessionRequired = async (req, res) => {
     const { id } = req.params;

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const ADMIN_TOKEN_KEY = "adminToken";
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -11,6 +12,7 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem(ADMIN_TOKEN_KEY) || "");
 
   // Data State
   const [data, setData] = useState(null);
@@ -30,13 +32,25 @@ export default function Admin() {
 
   // 1. Check if admin is already logged in on mount
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/session`, { credentials: "include" })
+    if (!adminToken) {
+      setCheckingAuth(false);
+      return;
+    }
+
+    fetch(`${API_BASE}/api/admin/session`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    })
       .then(res => {
-        if (res.ok) setIsAuthenticated(true);
+        if (res.ok) {
+          setIsAuthenticated(true);
+        } else {
+          sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+          setAdminToken("");
+        }
       })
       .catch(() => {})
       .finally(() => setCheckingAuth(false));
-  }, []);
+  }, [adminToken]);
 
   // 2. Fetch dashboard data when authenticated
   useEffect(() => {
@@ -44,9 +58,13 @@ export default function Admin() {
     
     setLoadingData(true);
     setDataError("");
-    fetch(`${API_BASE}/api/admin/dashboard`, { credentials: "include" })
+    fetch(`${API_BASE}/api/admin/dashboard`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    })
       .then(async (res) => {
         if (res.status === 401) {
+          sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+          setAdminToken("");
           setIsAuthenticated(false);
           throw new Error("Session expired");
         }
@@ -67,7 +85,7 @@ export default function Admin() {
         setDataError(err.message || "Failed to load dashboard data.");
       })
       .finally(() => setLoadingData(false));
-  }, [isAuthenticated]);
+  }, [isAuthenticated, adminToken]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -97,8 +115,10 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/sessions/${session._id}/required`, {
         method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({ isRequired })
       });
       const responseData = await res.json().catch(() => null);
@@ -127,8 +147,10 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/sessions/${session._id}/order`, {
         method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({ order })
       });
       const responseData = await res.json().catch(() => null);
@@ -157,12 +179,16 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/session`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.message || "Invalid password");
+      if (typeof resData.token !== "string" || resData.token.length === 0) {
+        throw new Error("The server did not return an admin token.");
+      }
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, resData.token);
+      setAdminToken(resData.token);
       setPassword("");
       setIsAuthenticated(true);
     } catch (err) {
@@ -172,9 +198,17 @@ export default function Admin() {
 
   // 4. Handle Logout
   const handleLogout = async () => {
-    await fetch(`${API_BASE}/api/admin/session`, { method: "DELETE", credentials: "include" });
-    setIsAuthenticated(false);
-    setData(null);
+    try {
+      await fetch(`${API_BASE}/api/admin/session`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    } finally {
+      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      setAdminToken("");
+      setIsAuthenticated(false);
+      setData(null);
+    }
   };
 
   // 5. Export to REAL Excel (.xlsx)

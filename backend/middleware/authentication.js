@@ -5,8 +5,6 @@ const User = require("../models/User");
 const TOKEN_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
 const AUTH_COOKIE_NAME = "selection_auth";
 const AUTH_COOKIE_PATH = "/api";
-const ADMIN_COOKIE_NAME = "admin_dashboard";
-const ADMIN_COOKIE_PATH = "/api/admin";
 const ADMIN_TOKEN_LIFETIME_SECONDS = 8 * 60 * 60;
 
 const getTokenSecret = () => {
@@ -56,42 +54,26 @@ const setAuthenticationCookie = (res, token, expiresIn) => {
 
 const createAdminToken = () => {
     const now = Math.floor(Date.now() / 1000);
+    const headerPart = Buffer.from(JSON.stringify({
+        alg: "HS256",
+        typ: "JWT"
+    })).toString("base64url");
     const payload = Buffer.from(JSON.stringify({
         sub: "admin",
         role: "admin",
         iat: now,
         exp: now + ADMIN_TOKEN_LIFETIME_SECONDS
     })).toString("base64url");
+    const unsignedToken = `${headerPart}.${payload}`;
     const signature = crypto
         .createHmac("sha256", getTokenSecret())
-        .update(payload)
+        .update(unsignedToken)
         .digest("base64url");
 
     return {
-        token: `${payload}.${signature}`,
+        token: `${unsignedToken}.${signature}`,
         expiresIn: ADMIN_TOKEN_LIFETIME_SECONDS
     };
-};
-
-const setAdminCookie = (res, token, expiresIn) => {
-    const secure = process.env.NODE_ENV === "production";
-    res.cookie(ADMIN_COOKIE_NAME, token, {
-        httpOnly: true,
-        secure,
-        sameSite: secure ? "none" : "lax",
-        path: ADMIN_COOKIE_PATH,
-        maxAge: expiresIn * 1000
-    });
-};
-
-const clearAdminCookie = (res) => {
-    const secure = process.env.NODE_ENV === "production";
-    res.clearCookie(ADMIN_COOKIE_NAME, {
-        httpOnly: true,
-        secure,
-        sameSite: secure ? "none" : "lax",
-        path: ADMIN_COOKIE_PATH
-    });
 };
 
 const getCookieToken = (cookieHeader) => {
@@ -170,25 +152,27 @@ const authenticateAdmin = (req, res, next) => {
         });
     }
 
-    const cookieHeader = req.headers.cookie || "";
-    const token = cookieHeader.split(";")
-        .map((part) => part.trim())
-        .find((part) => part.startsWith(`${ADMIN_COOKIE_NAME}=`))
-        ?.slice(ADMIN_COOKIE_NAME.length + 1);
-    if (!token || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+    const authorization = req.get("authorization") || "";
+    const bearerMatch = authorization.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i);
+    if (!bearerMatch) {
         return res.status(401).json({ message: "Admin authentication required" });
     }
 
     try {
-        const [payloadPart, signaturePart] = token.split(".");
+        const [headerPart, payloadPart, signaturePart] = bearerMatch[1].split(".");
         const expectedSignature = crypto
             .createHmac("sha256", secret)
-            .update(payloadPart)
+            .update(`${headerPart}.${payloadPart}`)
             .digest();
         const actualSignature = Buffer.from(signaturePart, "base64url");
 
         if (actualSignature.length !== expectedSignature.length ||
             !crypto.timingSafeEqual(actualSignature, expectedSignature)) {
+            return res.status(401).json({ message: "Admin session is invalid or expired" });
+        }
+
+        const header = JSON.parse(Buffer.from(headerPart, "base64url").toString("utf8"));
+        if (header.alg !== "HS256" || header.typ !== "JWT") {
             return res.status(401).json({ message: "Admin session is invalid or expired" });
         }
 
@@ -214,7 +198,5 @@ module.exports = {
     assertTokenSecretConfigured,
     createBearerToken,
     createAdminToken,
-    setAuthenticationCookie,
-    setAdminCookie,
-    clearAdminCookie
+    setAuthenticationCookie
 };
