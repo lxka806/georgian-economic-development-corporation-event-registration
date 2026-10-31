@@ -16,27 +16,12 @@ const selectionRoute = require("./router/selection.routes")
 const adminRoute = require("./router/admin.routes")
 const cors = require("cors");
 
-const configuredOrigins = (process.env.CORS_ORIGINS || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-const allowedOrigins = configuredOrigins.length > 0
-    ? configuredOrigins
-    : process.env.NODE_ENV === "production"
-        ? []
-        : ["http://localhost:5173", "http://127.0.0.1:5173"]
+const corsOptions = {
+    origin: true,
+    credentials: true
+};
 
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            return callback(null, true)
-        }
-
-        return callback(new Error("Origin is not allowed by CORS"))
-    },
-    credentials: true,
-    optionsSuccessStatus: 204
-}))
+app.use(cors({corsOptions}))
 
 app.use(express.json())
 
