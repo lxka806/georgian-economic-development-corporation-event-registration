@@ -73,20 +73,22 @@ const createAdminToken = () => {
 };
 
 const setAdminCookie = (res, token, expiresIn) => {
+    const secure = process.env.NODE_ENV === "production";
     res.cookie(ADMIN_COOKIE_NAME, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure,
+        sameSite: secure ? "none" : "lax",
         path: ADMIN_COOKIE_PATH,
         maxAge: expiresIn * 1000
     });
 };
 
 const clearAdminCookie = (res) => {
+    const secure = process.env.NODE_ENV === "production";
     res.clearCookie(ADMIN_COOKIE_NAME, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure,
+        sameSite: secure ? "none" : "lax",
         path: ADMIN_COOKIE_PATH
     });
 };
