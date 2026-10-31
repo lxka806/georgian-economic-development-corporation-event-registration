@@ -3,8 +3,6 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 
 const TOKEN_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
-const AUTH_COOKIE_NAME = "selection_auth";
-const AUTH_COOKIE_PATH = "/api";
 const ADMIN_TOKEN_LIFETIME_SECONDS = 8 * 60 * 60;
 
 const getTokenSecret = () => {
@@ -24,32 +22,25 @@ const assertTokenSecretConfigured = () => {
 
 const createBearerToken = (userId) => {
     const now = Math.floor(Date.now() / 1000);
+    const headerPart = Buffer.from(JSON.stringify({
+        alg: "HS256",
+        typ: "JWT"
+    })).toString("base64url");
     const payload = Buffer.from(JSON.stringify({
         sub: userId.toString(),
         iat: now,
         exp: now + TOKEN_LIFETIME_SECONDS
     })).toString("base64url");
+    const unsignedToken = `${headerPart}.${payload}`;
     const signature = crypto
         .createHmac("sha256", getTokenSecret())
-        .update(payload)
+        .update(unsignedToken)
         .digest("base64url");
 
     return {
-        token: `${payload}.${signature}`,
+        token: `${unsignedToken}.${signature}`,
         expiresIn: TOKEN_LIFETIME_SECONDS
     };
-};
-
-const setAuthenticationCookie = (res, token, expiresIn) => {
-    res.clearCookie(AUTH_COOKIE_NAME, { path: "/api/registrations" });
-    const secure = process.env.NODE_ENV === "production";
-    res.cookie(AUTH_COOKIE_NAME, token, {
-        httpOnly: true,
-        secure,
-        sameSite: secure ? "none" : "lax",
-        path: AUTH_COOKIE_PATH,
-        maxAge: expiresIn * 1000
-    });
 };
 
 const createAdminToken = () => {
@@ -76,18 +67,6 @@ const createAdminToken = () => {
     };
 };
 
-const getCookieToken = (cookieHeader) => {
-    if (typeof cookieHeader !== "string") {
-        return null;
-    }
-
-    const cookie = cookieHeader.split(";")
-        .map((part) => part.trim())
-        .find((part) => part.startsWith(`${AUTH_COOKIE_NAME}=`));
-
-    return cookie ? cookie.slice(AUTH_COOKIE_NAME.length + 1) : null;
-};
-
 const authenticate = async (req, res, next) => {
     let secret;
     try {
@@ -99,24 +78,28 @@ const authenticate = async (req, res, next) => {
     }
 
     const authorization = req.get("authorization") || "";
-    const bearerMatch = authorization.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/);
-    const token = bearerMatch ? bearerMatch[1] : getCookieToken(req.headers.cookie);
-    if (!token || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+    const bearerMatch = authorization.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i);
+    if (!bearerMatch) {
         return res.status(401).json({
-            message: "Authentication required. Register first to receive an authentication cookie."
+            message: "Authentication required. Register first to receive an access token."
         });
     }
 
     try {
-        const [payloadPart, signaturePart] = token.split(".");
+        const [headerPart, payloadPart, signaturePart] = bearerMatch[1].split(".");
         const expectedSignature = crypto
             .createHmac("sha256", secret)
-            .update(payloadPart)
+            .update(`${headerPart}.${payloadPart}`)
             .digest();
         const actualSignature = Buffer.from(signaturePart, "base64url");
 
         if (actualSignature.length !== expectedSignature.length ||
             !crypto.timingSafeEqual(actualSignature, expectedSignature)) {
+            return res.status(401).json({ message: "Invalid or expired bearer token" });
+        }
+
+        const header = JSON.parse(Buffer.from(headerPart, "base64url").toString("utf8"));
+        if (header.alg !== "HS256" || header.typ !== "JWT") {
             return res.status(401).json({ message: "Invalid or expired bearer token" });
         }
 
@@ -197,6 +180,5 @@ module.exports = {
     authenticateAdmin,
     assertTokenSecretConfigured,
     createBearerToken,
-    createAdminToken,
-    setAuthenticationCookie
+    createAdminToken
 };

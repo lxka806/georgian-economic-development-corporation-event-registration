@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
-const ADMIN_TOKEN_KEY = "adminToken";
 
-export default function Admin() {
+export default function Admin({ adminToken, setAdminToken }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   
   // Auth State
@@ -12,7 +11,6 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem(ADMIN_TOKEN_KEY) || "");
 
   // Data State
   const [data, setData] = useState(null);
@@ -44,13 +42,13 @@ export default function Admin() {
         if (res.ok) {
           setIsAuthenticated(true);
         } else {
-          sessionStorage.removeItem(ADMIN_TOKEN_KEY);
           setAdminToken("");
+          setIsAuthenticated(false);
         }
       })
       .catch(() => {})
       .finally(() => setCheckingAuth(false));
-  }, [adminToken]);
+  }, [adminToken, setAdminToken]);
 
   // 2. Fetch dashboard data when authenticated
   useEffect(() => {
@@ -63,7 +61,6 @@ export default function Admin() {
     })
       .then(async (res) => {
         if (res.status === 401) {
-          sessionStorage.removeItem(ADMIN_TOKEN_KEY);
           setAdminToken("");
           setIsAuthenticated(false);
           throw new Error("Session expired");
@@ -85,7 +82,7 @@ export default function Admin() {
         setDataError(err.message || "Failed to load dashboard data.");
       })
       .finally(() => setLoadingData(false));
-  }, [isAuthenticated, adminToken]);
+  }, [isAuthenticated, adminToken, setAdminToken]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -122,6 +119,12 @@ export default function Admin() {
         body: JSON.stringify({ isRequired })
       });
       const responseData = await res.json().catch(() => null);
+      if (res.status === 401) {
+        setAdminToken("");
+        setIsAuthenticated(false);
+        setData(null);
+        throw new Error("Session expired. Please sign in again.");
+      }
       if (!res.ok) {
         throw new Error(responseData?.message || `Failed to update session (${res.status})`);
       }
@@ -154,6 +157,12 @@ export default function Admin() {
         body: JSON.stringify({ order })
       });
       const responseData = await res.json().catch(() => null);
+      if (res.status === 401) {
+        setAdminToken("");
+        setIsAuthenticated(false);
+        setData(null);
+        throw new Error("Session expired. Please sign in again.");
+      }
       if (!res.ok) {
         throw new Error(responseData?.message || `Failed to update session order (${res.status})`);
       }
@@ -187,7 +196,6 @@ export default function Admin() {
       if (typeof resData.token !== "string" || resData.token.length === 0) {
         throw new Error("The server did not return an admin token.");
       }
-      sessionStorage.setItem(ADMIN_TOKEN_KEY, resData.token);
       setAdminToken(resData.token);
       setPassword("");
       setIsAuthenticated(true);
@@ -204,7 +212,6 @@ export default function Admin() {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
     } finally {
-      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
       setAdminToken("");
       setIsAuthenticated(false);
       setData(null);

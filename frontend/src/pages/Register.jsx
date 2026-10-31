@@ -35,7 +35,7 @@ const georgianTextFields = [
 ];
 const georgianInputError = "გთხოვთ, ყველა ველი (ელფოსტის გარდა) შეავსოთ ქართულად";
 
-export default function Register() {
+export default function Register({ setParticipantToken }) {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [status, setStatus] = useState({ type: "", message: "" });
@@ -89,7 +89,6 @@ export default function Register() {
     try {
       const res = await fetch(`${API_BASE}/api/users/register`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
@@ -100,7 +99,11 @@ export default function Register() {
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.message || "რეგისტრაცია ვერ განხორციელდა");
+      if (typeof data.token !== "string" || !data.token) {
+        throw new Error("სერვერმა ავტორიზაციის კოდი არ დააბრუნა");
+      }
 
+      setParticipantToken(data.token);
       navigate("/sessions");
     } catch (err) {
       setStatus({

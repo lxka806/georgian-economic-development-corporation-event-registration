@@ -14,7 +14,9 @@ bytes), and `ADMIN_DASHBOARD_PASSWORD` (at least 16 characters). Set
 The backend exposes:
 
 - `POST /api/users/register` — create a user and start an authenticated
-  session immediately.
+  session immediately; the response includes a Bearer token.
 - `GET /api/registrations/selections/me` and
   `POST /api/registrations/selections` — read and save the authenticated
-  user's programme selections.
+  user's programme selections using `Authorization: Bearer <token>`.
+- `POST /api/admin/session` — sign in and receive an admin Bearer token.
+  Protected admin endpoints accept the same Authorization header.

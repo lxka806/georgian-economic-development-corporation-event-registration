@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-export default function Sessions() {
+export default function Sessions({ participantToken, setParticipantToken }) {
   const navigate = useNavigate();
   const location = useLocation();
   // States
@@ -27,6 +27,11 @@ export default function Sessions() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (!participantToken) {
+          navigate("/register", { replace: true });
+          return;
+        }
+
         // 1. Fetch all sessions (which includes events based on your backend)
         const sessionsRes = await fetch(`${API_BASE}/api/sessions`);
         const sessionsData = await sessionsRes.json();
@@ -45,11 +50,16 @@ export default function Sessions() {
 
         // 2. Fetch user's existing selections
         const selectionsRes = await fetch(`${API_BASE}/api/registrations/selections/me`, {
-          credentials: "include"
+          headers: { Authorization: `Bearer ${participantToken}` }
         });
         
         const selectionsData = await selectionsRes.json().catch(() => null);
         if (!selectionsRes.ok) {
+          if (selectionsRes.status === 401) {
+            setParticipantToken("");
+            navigate("/register", { replace: true });
+            return;
+          }
           throw new Error(selectionsData?.message || "მონაცემების ჩატვირთვა ვერ მოხერხდა");
         }
         const existingSessionIds = Array.isArray(selectionsData.sessions)
@@ -75,7 +85,7 @@ export default function Sessions() {
     };
 
     fetchData();
-  }, []);
+  }, [participantToken, setParticipantToken, navigate]);
 
   // Toggle session selection (for non-parallel events)
   const handleToggleSession = (sessionId) => {
@@ -142,8 +152,10 @@ export default function Sessions() {
 
       const res = await fetch(`${API_BASE}/api/registrations/selections`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${participantToken}`,
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           sessionIds: currentSessionIds,
           eventIds: selectedEventIds
@@ -151,7 +163,14 @@ export default function Sessions() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "შენახვა ვერ მოხერხდა");
+      if (!res.ok) {
+        if (res.status === 401) {
+          setParticipantToken("");
+          navigate("/register", { replace: true });
+          return;
+        }
+        throw new Error(data.message || "შენახვა ვერ მოხერხდა");
+      }
 
       navigate("/thx");
     } catch (err) {

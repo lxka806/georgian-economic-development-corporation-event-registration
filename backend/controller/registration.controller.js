@@ -2,8 +2,7 @@
 const User = require("../models/User");
 const {
     assertTokenSecretConfigured,
-    createBearerToken,
-    setAuthenticationCookie
+    createBearerToken
 } = require("../middleware/authentication");
 
 const georgianInputError = "გთხოვთ, ყველა ველი (ელფოსტის გარდა) შეავსოთ ქართულად";
@@ -102,10 +101,10 @@ const registerUser = async (req, res) => {
         });
 
         const { token, expiresIn } = createBearerToken(user._id);
-        setAuthenticationCookie(res, token, expiresIn);
 
         return res.status(201).json({
             message: "Registration successful.",
+            token,
             expiresIn
         });
     } catch (error) {
