@@ -1,7 +1,10 @@
 
-const crypto = require("crypto");
 const User = require("../models/User");
-const { sendVerificationEmail } = require("../conf/mailer");
+const {
+    assertTokenSecretConfigured,
+    createBearerToken,
+    setAuthenticationCookie
+} = require("../middleware/authentication");
 
 const georgianInputError = "გთხოვთ, ყველა ველი (ელფოსტის გარდა) შეავსოთ ქართულად";
 
@@ -80,14 +83,7 @@ const registerUser = async (req, res) => {
             });
         }
 
-        const verificationCode = crypto
-            .randomInt(10000000, 100000000)
-            .toString();
-
-        const hashedToken = crypto
-            .createHash("sha256")
-            .update(verificationCode)
-            .digest("hex");
+        assertTokenSecretConfigured();
 
         const user = await User.create({
             firstName: firstName.trim(),
@@ -97,32 +93,23 @@ const registerUser = async (req, res) => {
             businessName: businessName.trim(),
             position: position.trim(),
             activity: activity.trim(),
-            businessDescription: businessDescription.trim(),
-            isEmailVerified: false,
-            emailVerificationToken: hashedToken,
-            emailVerificationExpires: new Date(
-                Date.now() + 15 * 60 * 1000
-            )
+            businessDescription: businessDescription.trim()
         });
 
-        try {
-            await sendVerificationEmail(user, verificationCode);
-        } catch (emailError) {
-            console.error("Verification email delivery failed:", {
-                code: emailError.code || "EMAIL_CONFIGURATION_ERROR",
-                responseCode: emailError.responseCode || null,
-                command: emailError.command || null
-            });
+        const { token, expiresIn } = createBearerToken(user._id);
+        setAuthenticationCookie(res, token, expiresIn);
 
+        return res.status(201).json({
+            message: "Registration successful.",
+            expiresIn
+        });
+    } catch (error) {
+        if (error.code === "AUTH_TOKEN_SECRET_NOT_CONFIGURED") {
             return res.status(503).json({
-                message: "Your account was created, but the verification email could not be sent. Please try resending the verification email."
+                message: "Authentication is not configured on the server"
             });
         }
 
-        return res.status(201).json({
-            message: "Registration successful. Check your email to verify your account."
-        });
-    } catch (error) {
         console.error("Registration error:", error);
 
         if (error.code === 11000) {

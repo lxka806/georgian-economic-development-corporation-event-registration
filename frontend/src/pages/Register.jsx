@@ -85,6 +85,7 @@ export default function Register() {
     try {
       const res = await fetch(`${API_BASE}/api/users/register`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
@@ -96,9 +97,7 @@ export default function Register() {
 
       if (!res.ok) throw new Error(data.message || "რეგისტრაცია ვერ განხორციელდა");
 
-      const email = form.email.trim();
-      sessionStorage.setItem("registrationEmail", email);
-      navigate(`/sessions?email=${encodeURIComponent(email)}`);
+      navigate("/sessions");
     } catch (err) {
       setStatus({
         type: "error",
@@ -144,11 +143,6 @@ export default function Register() {
           <div className="flex items-center gap-1.5 text-gray-400">
             <span className="flex items-center justify-center w-5 h-5 rounded-full border border-gray-300">2</span>
             <span>პროგრამის არჩევა</span>
-          </div>
-          <div className="h-px bg-gray-300 w-6 mx-2"></div>
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <span className="flex items-center justify-center w-5 h-5 rounded-full border border-gray-300">3</span>
-            <span>ელფოსტის დადასტურება</span>
           </div>
         </div>
 
@@ -207,7 +201,7 @@ export default function Register() {
                 className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-1 focus:ring-[#b33922] focus:border-[#b33922] outline-none transition-colors"
               />
               <p className="text-[11px] text-gray-500 mt-1">
-                მიუთითეთ აქტიური ელფოსტის მისამართი, რომელზეც შეძლებთ დამადასტურებელი კოდის მიღებას.
+                მიუთითეთ საკონტაქტო ელფოსტის მისამართი.
               </p>
             </div>
 

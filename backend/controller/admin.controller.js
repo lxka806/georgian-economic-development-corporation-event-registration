@@ -159,7 +159,7 @@ const setSessionOrder = async (req, res) => {
 const getPublicAdminSummary = async (req, res) => {
     try {
         const [users, sessions, events] = await Promise.all([
-            User.find().select("_id isEmailVerified sessions").lean(),
+            User.find().select("_id sessions").lean(),
             Session.find().select("_id").lean(),
             Event.find().select("_id participants").lean()
         ]);
@@ -195,7 +195,6 @@ const getPublicAdminSummary = async (req, res) => {
         return res.status(200).json({
             summary: {
                 totalUsers: users.length,
-                verifiedUsers: users.filter((user) => user.isEmailVerified === true).length,
                 usersWithSessions: sessionParticipantIds.size,
                 usersWithEvents: eventParticipantIds.size,
                 totalSessions: sessions.length,
@@ -216,8 +215,8 @@ const getPublicAdminSummary = async (req, res) => {
 const getAdminDashboard = async (req, res) => {
     try {
         const [users, sessions, events] = await Promise.all([
-            User.find({ isEmailVerified: true })
-                .select("_id firstName lastName email phoneNumber businessName position activity businessDescription isEmailVerified sessions createdAt")
+            User.find()
+                .select("_id firstName lastName email phoneNumber businessName position activity businessDescription sessions createdAt")
                 .populate({ path: "sessions", select: "name startTime endTime order" })
                 .lean(),
             Session.find().select("_id name startTime endTime isRequired order").lean(),
@@ -308,7 +307,6 @@ const getAdminDashboard = async (req, res) => {
                 position: user.position,
                 activity: user.activity,
                 businessDescription: user.businessDescription,
-                isEmailVerified: user.isEmailVerified === true,
                 createdAt: user.createdAt,
                 sessions: selectedSessions,
                 events: eventsByUser.get(userId) || []
@@ -318,7 +316,6 @@ const getAdminDashboard = async (req, res) => {
         return res.status(200).json({
             summary: {
                 totalUsers: users.length,
-                verifiedUsers: users.filter((user) => user.isEmailVerified === true).length,
                 usersWithSessions,
                 usersWithEvents: selectedEventUsers.size,
                 totalSessions: sessions.length,

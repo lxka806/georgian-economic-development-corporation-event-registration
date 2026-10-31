@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export default function Sessions() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const email = searchParams.get("email") || sessionStorage.getItem("registrationEmail") || "";
-  
   // States
   const [sessions, setSessions] = useState([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState([]);
@@ -25,20 +22,6 @@ export default function Sessions() {
       navigate(location.pathname + location.search, { replace: true, state: null });
     }
   }, [location, navigate]);
-
-  const loadPendingSelections = () => {
-    try {
-      const saved = sessionStorage.getItem("pendingSelections");
-      if (!saved) return null;
-      const selections = JSON.parse(saved);
-      if (!Array.isArray(selections.sessionIds) || !Array.isArray(selections.eventIds)) {
-        return null;
-      }
-      return selections;
-    } catch {
-      return null;
-    }
-  };
 
   // Fetch sessions and current user selections on load
   useEffect(() => {
@@ -65,37 +48,25 @@ export default function Sessions() {
           credentials: "include"
         });
         
-        if (selectionsRes.ok) {
-          const selectionsData = await selectionsRes.json();
-          const existingSessionIds = Array.isArray(selectionsData.sessions)
-            ? selectionsData.sessions
-                .map((session) => session._id)
-                .filter((sessionId) => availableSessionIds.has(sessionId))
-            : [];
-          setSelectedSessionIds([...new Set([...existingSessionIds, ...requiredSessionIds])]);
-          setSelectedEventIds(
-            Array.isArray(selectionsData.events)
-              ? selectionsData.events
-                  .map((event) => event._id)
-                  .filter((eventId) => availableEventIds.has(eventId))
-                  .slice(0, 1)
-              : []
-          );
-          setSelectionLoaded(true);
-        } else {
-          const pending = loadPendingSelections();
-          if (pending) {
-            const pendingSessionIds = pending.sessionIds.filter((sessionId) =>
-              availableSessionIds.has(sessionId)
-            );
-            setSelectedSessionIds([...new Set([...pendingSessionIds, ...requiredSessionIds])]);
-            setSelectedEventIds(
-              pending.eventIds.filter((eventId) => availableEventIds.has(eventId)).slice(0, 1)
-            );
-          } else {
-            setSelectedSessionIds(requiredSessionIds);
-          }
+        const selectionsData = await selectionsRes.json().catch(() => null);
+        if (!selectionsRes.ok) {
+          throw new Error(selectionsData?.message || "მონაცემების ჩატვირთვა ვერ მოხერხდა");
         }
+        const existingSessionIds = Array.isArray(selectionsData.sessions)
+          ? selectionsData.sessions
+              .map((session) => session._id)
+              .filter((sessionId) => availableSessionIds.has(sessionId))
+          : [];
+        setSelectedSessionIds([...new Set([...existingSessionIds, ...requiredSessionIds])]);
+        setSelectedEventIds(
+          Array.isArray(selectionsData.events)
+            ? selectionsData.events
+                .map((event) => event._id)
+                .filter((eventId) => availableEventIds.has(eventId))
+                .slice(0, 1)
+            : []
+        );
+        setSelectionLoaded(true);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -125,7 +96,7 @@ export default function Sessions() {
     );
   };
 
-  // Save selections after verification, or keep them temporarily for the next step.
+  // Save the selected programme for the authenticated registrant.
   const handleSubmit = async () => {
     if (!privacyAccepted) {
       setError("გთხოვთ, დაეთანხმოთ პირობებს");
@@ -145,15 +116,6 @@ export default function Sessions() {
     setError(null);
 
     try {
-      if (!selectionLoaded) {
-        sessionStorage.setItem("pendingSelections", JSON.stringify({
-          sessionIds: selectedSessionIds,
-          eventIds: selectedEventIds
-        }));
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
-        return;
-      }
-
       const sessionsRes = await fetch(`${API_BASE}/api/sessions`);
       const availableSessions = await sessionsRes.json();
       if (!sessionsRes.ok || !Array.isArray(availableSessions)) {
@@ -191,7 +153,7 @@ export default function Sessions() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "შენახვა ვერ მოხერხდა");
 
-      navigate("/verify-email");
+      navigate("/thx");
     } catch (err) {
       if (err.message.toLowerCase().includes("selected event")) {
         setSelectedEventIds([]);
@@ -220,11 +182,6 @@ export default function Sessions() {
           <div className="flex items-center gap-1.5 text-[#b33922]">
             <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#b33922] text-white">2</span>
             <span className="text-[#b33922]">პროგრამა</span>
-          </div>
-          <div className="h-px bg-gray-300 w-6 mx-2"></div>
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <span className="flex items-center justify-center w-5 h-5 rounded-full border border-gray-300">3</span>
-            <span>ელფოსტის დადასტურება</span>
           </div>
         </div>
 
@@ -354,7 +311,7 @@ export default function Sessions() {
                 disabled={submitting}
                 className="px-8 py-2.5 bg-[#b33922] text-white rounded-md text-sm font-bold hover:bg-[#922d1b] transition-colors disabled:opacity-70 flex-1 md:flex-none"
               >
-                {submitting ? "ინახება..." : selectionLoaded ? "არჩევანის განახლება" : "შემდეგი — ელფოსტის დადასტურება"}
+                {submitting ? "ინახება..." : selectionLoaded ? "არჩევანის განახლება" : "არჩევანის შენახვა"}
               </button>
             </div>
           </div>

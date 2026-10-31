@@ -187,7 +187,6 @@ export default function Admin() {
       "გვარი": u.lastName,
       "ტელეფონი": u.phoneNumber,
       "ელ. ფოსტა": u.email,
-      "ელფოსტა დადასტურებულია": u.isEmailVerified ? "დიახ" : "არა",
       "რეგისტრაციის თარიღი": u.createdAt ? new Date(u.createdAt).toLocaleString() : "",
       "კომპანია": u.businessName || "",
       "პოზიცია": u.position || "",
@@ -205,7 +204,7 @@ export default function Admin() {
     
     const columnWidths = [
       { wch: 26 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 },
-      { wch: 24 }, { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 20 },
+      { wch: 22 }, { wch: 25 }, { wch: 20 }, { wch: 20 },
       { wch: 40 }, { wch: 30 }, { wch: 30 },
     ];
     worksheet["!cols"] = columnWidths;
@@ -463,8 +462,8 @@ export default function Admin() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="bg-[#122924] text-white p-6 rounded-xl shadow-md">
             <p className="text-sm text-gray-300 mb-1">სულ დარეგისტრირებული</p>
-            <p className="text-xs text-gray-400 mb-6">დადასტურებული რეგისტრაციები</p>
-            <p className="text-4xl sm:text-5xl font-bold">{data.summary.verifiedUsers}</p>
+            <p className="text-xs text-gray-400 mb-6">რეგისტრირებული მონაწილეები</p>
+            <p className="text-4xl sm:text-5xl font-bold">{data.summary.totalUsers}</p>
           </div>
 
           {Object.entries(sessionStats).map(([name, count]) => (
@@ -540,7 +539,6 @@ export default function Admin() {
                     <th className="px-4 py-3 font-medium whitespace-nowrap">გვარი</th>
                     <th className="px-4 py-3 font-medium whitespace-nowrap">ტელეფონი</th>
                     <th className="px-4 py-3 font-medium whitespace-nowrap">ელ. ფოსტა</th>
-                    <th className="px-4 py-3 font-medium whitespace-nowrap">სტატუსი</th>
                     <th className="px-4 py-3 font-medium whitespace-nowrap">კომპანია</th>
                     <th className="px-4 py-3 font-medium whitespace-nowrap">პოზიცია</th>
                     <th className="px-4 py-3 font-medium whitespace-nowrap">სფერო</th>
@@ -555,15 +553,6 @@ export default function Admin() {
                       <td className="px-4 py-3 whitespace-nowrap text-gray-900 font-medium">{user.lastName}</td>
                       <td className="px-4 py-3 whitespace-nowrap">{user.phoneNumber}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-blue-600">{user.email}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                          user.isEmailVerified
-                            ? "bg-green-100 text-green-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}>
-                          {user.isEmailVerified ? "დადასტურებულია" : "არ არის დადასტურებული"}
-                        </span>
-                      </td>
                       <td className="px-4 py-3">{user.businessName || "—"}</td>
                       <td className="px-4 py-3">{user.position || "—"}</td>
                       <td className="px-4 py-3">{user.activity || "—"}</td>
@@ -590,7 +579,7 @@ export default function Admin() {
                   
                   {filteredUsers.length === 0 && (
                     <tr>
-                      <td colSpan="10" className="px-4 py-10 text-center text-gray-500">
+                      <td colSpan="9" className="px-4 py-10 text-center text-gray-500">
                         მონაწილეები ვერ მოიძებნა
                       </td>
                     </tr>

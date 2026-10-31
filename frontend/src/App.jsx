@@ -1,5 +1,4 @@
 import Register from "./pages/Register";
-import VerifyEmail from "./pages/VerifyEmail";
 import Admin from "./pages/Admin";
 import Home from "./pages/Home";
 import Sessions from "./pages/Sessions";
@@ -23,7 +22,6 @@ function App() {
         } 
       />
       <Route path="/register" element={<Register />}/>
-      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/sessions" element={<Sessions />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/thx" element={<ThankYou />} />

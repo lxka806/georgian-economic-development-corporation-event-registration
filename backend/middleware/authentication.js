@@ -44,10 +44,11 @@ const createBearerToken = (userId) => {
 
 const setAuthenticationCookie = (res, token, expiresIn) => {
     res.clearCookie(AUTH_COOKIE_NAME, { path: "/api/registrations" });
+    const secure = process.env.NODE_ENV === "production";
     res.cookie(AUTH_COOKIE_NAME, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure,
+        sameSite: secure ? "none" : "lax",
         path: AUTH_COOKIE_PATH,
         maxAge: expiresIn * 1000
     });
@@ -120,7 +121,7 @@ const authenticate = async (req, res, next) => {
     const token = bearerMatch ? bearerMatch[1] : getCookieToken(req.headers.cookie);
     if (!token || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
         return res.status(401).json({
-            message: "Authentication required. Verify your email first to receive an authentication cookie."
+            message: "Authentication required. Register first to receive an authentication cookie."
         });
     }
 
@@ -146,7 +147,7 @@ const authenticate = async (req, res, next) => {
         }
 
         const user = await User.findById(new mongoose.Types.ObjectId(payload.sub))
-            .select("_id isEmailVerified sessions");
+            .select("_id sessions");
         if (!user) {
             return res.status(401).json({ message: "Invalid or expired bearer token" });
         }
@@ -157,18 +158,6 @@ const authenticate = async (req, res, next) => {
         console.error("Authentication request failed:", error.message);
         return res.status(500).json({ message: "Unable to authenticate request" });
     }
-};
-
-const requireVerifiedEmail = (req, res, next) => {
-    if (!req.user) {
-        return res.status(401).json({ message: "Authentication is required" });
-    }
-
-    if (req.user.isEmailVerified !== true) {
-        return res.status(403).json({ message: "Verify your email before making selections" });
-    }
-
-    return next();
 };
 
 const authenticateAdmin = (req, res, next) => {
@@ -227,6 +216,5 @@ module.exports = {
     createAdminToken,
     setAuthenticationCookie,
     setAdminCookie,
-    clearAdminCookie,
-    requireVerifiedEmail
+    clearAdminCookie
 };

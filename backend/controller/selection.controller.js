@@ -50,14 +50,11 @@ const withDatabaseSession = (query, databaseSession) =>
 
 const buildSelectionPlan = async (userId, selections, databaseSession) => {
     const user = await withDatabaseSession(
-        User.findById(userId).select("sessions isEmailVerified"),
+        User.findById(userId).select("sessions"),
         databaseSession
     );
     if (!user) {
         throw httpError(401, "Authenticated user no longer exists");
-    }
-    if (user.isEmailVerified !== true) {
-        throw httpError(403, "Verify your email before making selections");
     }
 
     const selectedSessions = selections.sessionIds.length

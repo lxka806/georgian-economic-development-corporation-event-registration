@@ -3,14 +3,11 @@ const {
     getMySelections,
     saveSelections
 } = require("../controller/selection.controller");
-const {
-    authenticate,
-    requireVerifiedEmail
-} = require("../middleware/authentication");
+const { authenticate } = require("../middleware/authentication");
 
 const router = express.Router();
 
-router.post("/selections", authenticate, requireVerifiedEmail, saveSelections);
-router.get("/selections/me", authenticate, requireVerifiedEmail, getMySelections);
+router.post("/selections", authenticate, saveSelections);
+router.get("/selections/me", authenticate, getMySelections);
 
 module.exports = router;

@@ -23,11 +23,6 @@ export default function ThankYou() {
             <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#122924] text-white">✓</span>
             <span>პროგრამა</span>
           </div>
-          <div className="h-px bg-[#122924] w-6 mx-2"></div>
-          <div className="flex items-center gap-1.5">
-            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#122924] text-white">✓</span>
-            <span>დადასტურება</span>
-          </div>
         </div>
 
         {/* CONTENT */}

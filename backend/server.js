@@ -9,7 +9,6 @@ const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URL
 
 const app = express()
 const registerRoute = require("./router/registation.routes")
-const verificationRoute = require("./router/verification.routes")
 const sessionRoute = require("./router/session.routes")
 const eventRoute = require("./router/event.route")
 const selectionRoute = require("./router/selection.routes")
@@ -40,7 +39,6 @@ app.use(cors(corsOptions))
 app.use(express.json())
 
 app.use("/api/users", registerRoute)
-app.use("/api/auth", verificationRoute)
 app.use("/api/sessions", sessionRoute)
 app.use("/api/events", eventRoute)
 app.use("/api/registrations", selectionRoute)

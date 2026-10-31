@@ -57,18 +57,6 @@ const UserSchema = new mongoose.Schema(
                 message: georgianInputError
             }
         },
-        isEmailVerified: {
-            type: Boolean,
-            default: false
-        },
-        emailVerificationToken: {
-            type: String,
-            default: null
-        },
-        emailVerificationExpires: {
-            type: Date,
-            default: null
-        },
         sessions: [
             {
                 type: mongoose.Schema.Types.ObjectId,
