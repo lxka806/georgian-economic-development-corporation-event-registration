@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx"; // <-- Import Excel library
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("dashboard"); // "dashboard" | "registrations"

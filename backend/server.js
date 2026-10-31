@@ -16,12 +16,22 @@ const selectionRoute = require("./router/selection.routes")
 const adminRoute = require("./router/admin.routes")
 const cors = require("cors");
 
+const allowedOrigins = new Set([
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    ...(process.env.CORS_ORIGINS || "")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+]);
 const corsOptions = {
-    origin: true,
+    origin: (origin, callback) => {
+        callback(null, !origin || allowedOrigins.has(origin));
+    },
     credentials: true
 };
 
-app.use(cors({corsOptions}))
+app.use(cors(corsOptions))
 
 app.use(express.json())
 
