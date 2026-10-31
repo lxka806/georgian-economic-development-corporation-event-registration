@@ -80,6 +80,10 @@ export default function Register() {
       setStatus({ type: "error", message: "ტელეფონის ნომერი უნდა იწყებოდეს 5-ით" });
       return;
     }
+    if ((form.phoneNumber.match(/[0-9]/g) || []).length < 9) {
+      setStatus({ type: "error", message: "ტელეფონის ნომერი უნდა შეიცავდეს მინიმუმ 9 ციფრს" });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -189,7 +193,7 @@ export default function Register() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-1 focus:ring-[#b33922] focus:border-[#b33922] outline-none transition-colors"
               />
-              <p className="text-[11px] text-gray-500 mt-1">მიუთითეთ მობილური ტელეფონის ნომერი, რომელიც იწყება 5-ით.</p>
+              <p className="text-[11px] text-gray-500 mt-1">მიუთითეთ მობილური ტელეფონის ნომერი, რომელიც იწყება 5-ით და შეიცავს მინიმუმ 9 ციფრს.</p>
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-1">ელფოსტა *</label>

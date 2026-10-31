@@ -47,6 +47,11 @@ const registerUser = async (req, res) => {
                 message: "ტელეფონის ნომერი უნდა იწყებოდეს 5-ით"
             });
         }
+        if ((phoneNumber.match(/[0-9]/g) || []).length < 9) {
+            return res.status(400).json({
+                message: "ტელეფონის ნომერი უნდა შეიცავდეს მინიმუმ 9 ციფრს"
+            });
+        }
 
         const georgianTextFields = [
             firstName,

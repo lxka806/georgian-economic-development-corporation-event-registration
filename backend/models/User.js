@@ -23,8 +23,9 @@ const UserSchema = new mongoose.Schema(
             validate: {
                 validator: value =>
                     value.trim().startsWith("5") &&
+                    (value.match(/[0-9]/g) || []).length >= 9 &&
                     !/\p{Script=Latin}/u.test(value),
-                message: "ტელეფონის ნომერი უნდა იწყებოდეს 5-ით"
+                message: "ტელეფონის ნომერი უნდა იწყებოდეს 5-ით და შეიცავდეს მინიმუმ 9 ციფრს"
             }
         },
         email: {
